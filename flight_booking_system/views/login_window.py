@@ -32,7 +32,7 @@ class LoginWindow(QDialog):
         account_row = QHBoxLayout()
         account_label = QLabel("Tài khoản:")
         self.username_input = QLineEdit()
-        self.username_input.setPlaceholderText("______________")
+        self.username_input.setPlaceholderText("")
         account_row.addWidget(account_label)
         account_row.addWidget(self.username_input)
 
@@ -40,7 +40,7 @@ class LoginWindow(QDialog):
         password_label = QLabel("Mật khẩu:")
         self.password_input = QLineEdit()
         self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
-        self.password_input.setPlaceholderText("______________")
+        self.password_input.setPlaceholderText("")
         password_row.addWidget(password_label)
         password_row.addWidget(self.password_input)
 
