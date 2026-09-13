@@ -75,3 +75,101 @@ class Database:
             )
         finally:
             conn.close()
+        def create_demo_flights(self):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        flights = [
+            (
+                "VN101",
+                "SGN",
+                "HAN",
+                "07:00",
+                "09:10",
+                "2026-09-20",
+                1500000,
+                120,
+                "scheduled"
+            ),
+            (
+                "VN102",
+                "HAN",
+                "SGN",
+                "10:00",
+                "12:10",
+                "2026-09-20",
+                1600000,
+                100,
+                "scheduled"
+            ),
+            (
+                "VN201",
+                "SGN",
+                "DAD",
+                "08:00",
+                "09:20",
+                "2026-09-20",
+                1100000,
+                80,
+                "scheduled"
+            ),
+            (
+                "VN202",
+                "DAD",
+                "SGN",
+                "14:00",
+                "15:20",
+                "2026-09-20",
+                1150000,
+                70,
+                "scheduled"
+            ),
+            (
+                "VN301",
+                "SGN",
+                "HAN",
+                "18:30",
+                "20:40",
+                "2026-09-21",
+                1750000,
+                90,
+                "scheduled"
+            ),
+        ]
+
+        try:
+            for flight in flights:
+                cursor.execute("""
+                    SELECT flight_id
+                    FROM flights
+                    WHERE flight_code = ?
+                """, (flight[0],))
+
+                if cursor.fetchone():
+                    continue
+
+                cursor.execute("""
+                    INSERT INTO flights (
+                        flight_code,
+                        departure_airport,
+                        arrival_airport,
+                        departure_time,
+                        arrival_time,
+                        flight_date,
+                        price,
+                        available_seats,
+                        status
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, flight)
+
+            conn.commit()
+
+            print("Đã tạo dữ liệu chuyến bay mẫu.")
+
+        except Exception as e:
+            conn.rollback()
+            print("Lỗi tạo chuyến bay mẫu:", e)
+
+        finally:
+            conn.close()
