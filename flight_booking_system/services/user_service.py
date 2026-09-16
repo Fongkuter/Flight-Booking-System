@@ -1,177 +1,47 @@
-import hashlib
-import re
-
+from typing import Optional, Dict, Any
 from database.database import Database
-
+from models.user import User
 
 class UserService:
-
     def __init__(self):
-
         self.db = Database()
 
-    def hash_password(self, password):
-
-        return hashlib.sha256(
-            password.encode("utf-8")
-        ).hexdigest()
-
-    def is_valid_email(self, email):
-
-        pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"
-
-        return re.match(
-            pattern,
-            email
-        ) is not None
-
-    def is_valid_phone(self, phone):
-
-        pattern = r"^(0|\+84)[0-9]{9,10}$"
-
-        return re.match(
-            pattern,
-            phone
-        ) is not None
-
-    def register_customer(
-        self,
-        full_name,
-        email,
-        phone,
-        username,
-        password,
-        confirm_password
-    ):
-
-        full_name = full_name.strip()
-        email = email.strip()
-        phone = phone.strip()
-        username = username.strip()
-
-        if not full_name:
-
-            return False, "Vui lòng nhập họ và tên."
-
-        if not email:
-
-            return False, "Vui lòng nhập email."
-
-        if not phone:
-
-            return False, "Vui lòng nhập số điện thoại."
-
-        if not username:
-
-            return False, "Vui lòng nhập tên đăng nhập."
-
-        if not password:
-
-            return False, "Vui lòng nhập mật khẩu."
-
-        if not confirm_password:
-
-            return False, "Vui lòng xác nhận mật khẩu."
-
-        if not self.is_valid_email(email):
-
-            return False, "Email không hợp lệ."
-
-        if not self.is_valid_phone(phone):
-
-            return False, "Số điện thoại không hợp lệ."
-            
-        if len(username) < 4:
-
-            return False, (
-                "Tên đăng nhập phải có ít nhất 4 ký tự."
+    def login(self, username: str, password: str) -> Optional[User]:
+        query = "SELECT * FROM users WHERE username = %s"
+        results = self.db.execute_query(query, (username.strip(),))
+        if not results:
+            return None
+        row = results[0]
+        # Đối chiếu mật khẩu
+        if row["password_hash"] == password:
+            return User(
+                id=row["id"],
+                username=row["username"],
+                password_hash=row["password_hash"],
+                email=row["email"],
+                full_name=row["full_name"],
+                phone=row["phone"],
+                role=row.get("role", "customer"),
+                status=row.get("status", "active"),
+                created_at=str(row.get("created_at", ""))
             )
+        return None
 
-        if len(password) < 6:
+    def register(self, username: str, password: str, email: str, full_name: str, phone: str) -> bool:
+        # Kiểm tra trùng lặp
+        check = self.db.execute_query("SELECT id FROM users WHERE username = %s OR email = %s", (username.strip(), email.strip()))
+        if check:
+            return False
 
-            return False, (
-                "Mật khẩu phải có ít nhất 6 ký tự."
-            )
+        query = """
+        INSERT INTO users (username, password_hash, email, full_name, phone, role, status)
+        VALUES (%s, %s, %s, %s, %s, 'customer', 'active')
+        """
+        self.db.execute_update(query, (username.strip(), password, email.strip(), full_name.strip(), phone.strip()))
+        return True
 
-        if password != confirm_password:
+    def get_all_users(self):
+        return self.db.execute_query("SELECT id, username, full_name, email, phone, role, status, created_at FROM users ORDER BY id DESC")
 
-            return False, (
-                "Mật khẩu xác nhận không khớp."
-            )
-
-
-        conn = self.db.get_connection()
-        cursor = conn.cursor()
-
-        try:
-
-            cursor.execute("""
-                SELECT user_id
-                FROM users
-                WHERE username = ?
-            """, (username,))
-
-            existing_username = cursor.fetchone()
-
-            if existing_username:
-
-                return False, (
-                    "Tên đăng nhập đã tồn tại."
-                )
-
-            cursor.execute("""
-                SELECT user_id
-                FROM users
-                WHERE email = ?
-            """, (email,))
-
-            existing_email = cursor.fetchone()
-
-            if existing_email:
-
-                return False, (
-                    "Email đã được sử dụng."
-                )
-
-            password_hash = self.hash_password(
-                password
-            )
-
-            cursor.execute("""
-                INSERT INTO users (
-                    full_name,
-                    email,
-                    phone,
-                    username,
-                    password_hash,
-                    role
-                )
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (
-                full_name,
-                email,
-                phone,
-                username,
-                password_hash,
-                "customer"
-            ))
-
-
-            conn.commit()
-
-            return True, (
-                "Đăng ký tài khoản thành công."
-            )
-
-        except Exception as e:
-
-
-            conn.rollback()
-
-            return False, (
-                f"Lỗi đăng ký tài khoản: {str(e)}"
-            )
-
-        finally:
-
-            conn.close()
+    def toggle_user_status(self, user_id: int, new_status: str):
+        self.db.execute_update("UPDATE users SET status = %s WHERE id = %s", (new_status, user_id))
