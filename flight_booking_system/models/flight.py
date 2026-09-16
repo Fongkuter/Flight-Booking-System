@@ -1,24 +1,18 @@
+from dataclasses import dataclass
+from typing import Optional
+
+@dataclass
 class Flight:
-    def __init__(
-        self,
-        flight_id=None,
-        flight_code="",
-        departure_airport="",
-        arrival_airport="",
-        departure_time="",
-        arrival_time="",
-        flight_date="",
-        price=0,
-        available_seats=0,
-        status="scheduled"
-    ):
-        self.flight_id = flight_id
-        self.flight_code = flight_code
-        self.departure_airport = departure_airport
-        self.arrival_airport = arrival_airport
-        self.departure_time = departure_time
-        self.arrival_time = arrival_time
-        self.flight_date = flight_date
-        self.price = price
-        self.available_seats = available_seats
-        self.status = status
+    id: Optional[int]
+    flight_number: str
+    airline_id: int
+    airplane_id: int
+    departure_airport: str
+    arrival_airport: str
+    departure_time: str
+    arrival_time: str
+    duration_minutes: int
+    base_price: float
+    status: str = "Scheduled"
+    airline_name: Optional[str] = None
+    airline_logo: Optional[str] = None
