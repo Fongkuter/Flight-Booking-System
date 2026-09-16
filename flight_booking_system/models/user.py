@@ -1,20 +1,20 @@
-class User:
-    
-    def __init__(
-        self,
-        user_id=None,
-        full_name="",
-        email="",
-        phone="",
-        username="",
-        password_hash="",
-        role="customer"
-    ):
+from dataclasses import dataclass
+from typing import Optional
 
-        self.user_id = user_id
-        self.full_name = full_name
-        self.email = email
-        self.phone = phone
-        self.username = username
-        self.password_hash = password_hash
-        self.role = role
+@dataclass
+class User:
+    id: Optional[int]
+    username: str
+    password_hash: str
+    email: str
+    full_name: str
+    phone: str
+    role: str = "customer" # 'customer' hoặc 'admin'
+    status: str = "active" # 'active' hoặc 'blocked'
+    created_at: Optional[str] = None
+
+    def is_admin(self) -> bool:
+        return self.role == "admin"
+
+    def is_active(self) -> bool:
+        return self.status == "active"
