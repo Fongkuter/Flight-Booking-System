@@ -1,121 +1,49 @@
+from typing import List, Dict, Any, Optional
 from database.database import Database
-
+from models.flight import Flight
 
 class FlightService:
-
     def __init__(self):
         self.db = Database()
 
-    def search_flights(
-        self,
-        departure_airport=None,
-        arrival_airport=None,
-        flight_date=None
-    ):
-        conn = self.db.get_connection()
-        cursor = conn.cursor()
-
+    def search_flights(self, dep: str, arr: str, date_str: Optional[str] = None) -> List[Dict[str, Any]]:
         query = """
-            SELECT
-                flight_id,
-                flight_code,
-                departure_airport,
-                arrival_airport,
-                departure_time,
-                arrival_time,
-                flight_date,
-                price,
-                available_seats,
-                status
-            FROM flights
-            WHERE 1 = 1
+        SELECT f.*, a.name as airline_name, a.logo as airline_logo, ap.model as plane_model
+        FROM flights f
+        JOIN airlines a ON f.airline_id = a.id
+        JOIN airplanes ap ON f.airplane_id = ap.id
+        WHERE f.departure_airport = %s AND f.arrival_airport = %s AND f.status != 'Cancelled'
         """
+        params = [dep, arr]
+        results = self.db.execute_query(query, tuple(params))
+        return results
 
-        params = []
-
-        # Tìm theo điểm đi
-        if departure_airport:
-            query += """
-                AND departure_airport = ?
-            """
-            params.append(departure_airport.strip().upper())
-
-        # Tìm theo điểm đến
-        if arrival_airport:
-            query += """
-                AND arrival_airport = ?
-            """
-            params.append(arrival_airport.strip().upper())
-
-        # Tìm theo ngày
-        if flight_date:
-            query += """
-                AND flight_date = ?
-            """
-            params.append(flight_date.strip())
-
-        # Chỉ lấy chuyến bay đang hoạt động
-        query += """
-            AND status = 'scheduled'
+    def get_all_flights(self) -> List[Dict[str, Any]]:
+        query = """
+        SELECT f.*, a.name as airline_name, a.logo as airline_logo
+        FROM flights f
+        JOIN airlines a ON f.airline_id = a.id
+        ORDER BY f.id DESC
         """
+        return self.db.execute_query(query)
 
-        # Chỉ lấy chuyến còn ghế
-        query += """
-            AND available_seats > 0
+    def add_flight(self, flight_number: str, airline_id: int, airplane_id: int,
+                   dep: str, arr: str, dep_time: str, arr_time: str,
+                   duration: int, price: float) -> int:
+        query = """
+        INSERT INTO flights (flight_number, airline_id, airplane_id, departure_airport, arrival_airport,
+                            departure_time, arrival_time, duration_minutes, base_price, status)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'Scheduled')
         """
+        return self.db.execute_update(query, (flight_number, airline_id, airplane_id, dep, arr, dep_time, arr_time, duration, price))
 
-        # Sắp xếp theo giờ khởi hành
-        query += """
-            ORDER BY flight_date, departure_time
-        """
+    def update_flight_status(self, flight_id: int, status: str):
+        self.db.execute_update("UPDATE flights SET status = %s WHERE id = %s", (status, flight_id))
 
-        try:
-            cursor.execute(query, params)
-            rows = cursor.fetchall()
+    def delete_flight(self, flight_id: int):
+        self.db.execute_update("DELETE FROM flights WHERE id = %s", (flight_id,))
 
-            flights = []
-
-            for row in rows:
-                flights.append(dict(row))
-
-            return True, flights
-
-        except Exception as e:
-            return False, f"Lỗi tìm kiếm chuyến bay: {str(e)}"
-
-        finally:
-            conn.close()
-
-    def get_flight_by_id(self, flight_id):
-        conn = self.db.get_connection()
-        cursor = conn.cursor()
-
-        try:
-            cursor.execute("""
-                SELECT
-                    flight_id,
-                    flight_code,
-                    departure_airport,
-                    arrival_airport,
-                    departure_time,
-                    arrival_time,
-                    flight_date,
-                    price,
-                    available_seats,
-                    status
-                FROM flights
-                WHERE flight_id = ?
-            """, (flight_id,))
-
-            row = cursor.fetchone()
-
-            if row is None:
-                return False, "Không tìm thấy chuyến bay."
-
-            return True, dict(row)
-
-        except Exception as e:
-            return False, f"Lỗi lấy thông tin chuyến bay: {str(e)}"
-
-        finally:
-            conn.close()
+    def get_occupied_seats(self, flight_id: int) -> List[str]:
+        query = "SELECT seat_number FROM bookings WHERE flight_id = %s AND booking_status != 'Cancelled'"
+        rows = self.db.execute_query(query, (flight_id,))
+        return [r["seat_number"] for r in rows]
